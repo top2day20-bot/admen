@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evil Firebase | المخزن</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="brand">EVIL <span>STORE</span></div><a href="../store/index.html" target="_blank">فتح صفحة المحل ↗</a></header>
+<main>
+<section class="hero"><div><p class="eyebrow">EVIL FIREBASE</p><h1>إدارة المخزن</h1><p>أضف منتجاتك هنا، وستظهر تلقائيًا في صفحة المحل.</p></div><div class="stats"><div><b id="count">0</b><small>منتج</small></div><div><b id="available">0</b><small>متوفر</small></div></div></section>
+
+<section class="panel">
+<h2>إضافة / تعديل منتج</h2>
+<form id="productForm">
+<input type="hidden" id="editId">
+<div class="grid">
+<label>اسم المنتج<input id="name" required placeholder="مثال: iPhone 15"></label>
+<label>السعر<input id="price" type="number" min="0" step="0.01" required placeholder="35000"></label>
+<label>الكمية<input id="quantity" type="number" min="0" required placeholder="5"></label>
+<label>التصنيف<input id="category" placeholder="موبايلات / إكسسوارات"></label>
+<label class="wide">وصف المنتج<textarea id="description" rows="3" placeholder="وصف مختصر للمنتج"></textarea></label>
+<label class="wide">رابط صورة المنتج<input id="imageUrl" placeholder="https://..."></label>
+</div>
+<div class="actions"><button class="primary" type="submit" id="saveBtn">إضافة المنتج</button><button type="button" id="cancelBtn" class="ghost" hidden>إلغاء التعديل</button></div>
+</form>
+</section>
+
+<section class="panel">
+<div class="section-head"><h2>المنتجات</h2><input id="search" class="search" placeholder="ابحث باسم المنتج أو التصنيف..."></div>
+<div id="products" class="products"></div>
+</section>
+</main>
+<div id="toast"></div>
+<script type="module" src="app.js"></script>
+</body></html>
