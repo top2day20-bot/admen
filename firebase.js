@@ -1,10 +1,13 @@
-// Firebase
+// firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import {
+  getDatabase
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDNqHcSfzszSSBf35cRQd8u7mANp9gpFgY",
   authDomain: "evil-firebase.firebaseapp.com",
+  databaseURL: "https://evil-firebase-default-rtdb.firebaseio.com",
   projectId: "evil-firebase",
   storageBucket: "evil-firebase.firebasestorage.app",
   messagingSenderId: "287948317918",
@@ -14,6 +17,4 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-const db = getFirestore(app);
-
-export { db };
+export const db = getDatabase(app);
