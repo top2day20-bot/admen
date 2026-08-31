@@ -1,212 +1,153 @@
-import {
-  collection,
-  addDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-
 import { db } from "./firebase.js";
+
+import {
+  ref,
+  push,
+  set,
+  remove,
+  onValue
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
+
+// ===============================
+// مكان تخزين المنتجات
+// ===============================
+
+const productsRef = ref(db, "products");
 
 
 // ===============================
 // عناصر الصفحة
 // ===============================
 
-const form = document.querySelector("#productForm");
+const productForm = document.getElementById("productForm");
 
-const nameInput =
-  document.querySelector("#name") ||
-  document.querySelector("#productName") ||
-  document.querySelector("#product-name");
+const productName = document.getElementById("productName");
+const productPrice = document.getElementById("productPrice");
+const productQuantity = document.getElementById("productQuantity");
+const productCategory = document.getElementById("productCategory");
+const productDescription = document.getElementById("productDescription");
+const productImage = document.getElementById("productImage");
 
-const priceInput =
-  document.querySelector("#price") ||
-  document.querySelector("#productPrice") ||
-  document.querySelector("#product-price");
+const productsContainer = document.getElementById("productsContainer");
 
-const quantityInput =
-  document.querySelector("#quantity") ||
-  document.querySelector("#qty") ||
-  document.querySelector("#productQuantity");
-
-const categoryInput =
-  document.querySelector("#category") ||
-  document.querySelector("#productCategory");
-
-const descriptionInput =
-  document.querySelector("#description") ||
-  document.querySelector("#productDescription");
-
-const imageInput =
-  document.querySelector("#image") ||
-  document.querySelector("#imageUrl") ||
-  document.querySelector("#productImage");
-
-const productsContainer =
-  document.querySelector("#products") ||
-  document.querySelector("#productList") ||
-  document.querySelector("#list");
-
-const saveButton =
-  document.querySelector("#saveBtn") ||
-  document.querySelector("#addProduct");
-
-const cancelButton =
-  document.querySelector("#cancelBtn");
-
-const searchInput =
-  document.querySelector("#search");
+const searchInput = document.getElementById("searchInput");
 
 
 // ===============================
-// المتغيرات
+// المنتجات الموجودة
 // ===============================
 
-let products = [];
-
-let editingId = null;
+let products = {};
 
 
 // ===============================
-// رسالة
+// قراءة المنتجات من Firebase
 // ===============================
 
-function toast(message) {
+onValue(productsRef, (snapshot) => {
 
-  let box = document.querySelector("#toast");
+  products = snapshot.val() || {};
 
-  if (!box) {
+  displayProducts(products);
 
-    box = document.createElement("div");
+}, (error) => {
 
-    box.id = "toast";
+  console.error(error);
 
-    box.style.position = "fixed";
-    box.style.bottom = "25px";
-    box.style.left = "50%";
-    box.style.transform = "translateX(-50%)";
-    box.style.padding = "14px 22px";
-    box.style.background = "#111827";
-    box.style.color = "white";
-    box.style.borderRadius = "12px";
-    box.style.zIndex = "99999";
-    box.style.fontSize = "15px";
-    box.style.boxShadow = "0 10px 30px rgba(0,0,0,.25)";
+  alert(
+    "حدث خطأ أثناء تحميل المنتجات:\n" +
+    error.message
+  );
 
-    document.body.appendChild(box);
-  }
-
-  box.textContent = message;
-
-  box.style.display = "block";
-
-  clearTimeout(window.toastTimer);
-
-  window.toastTimer = setTimeout(() => {
-
-    box.style.display = "none";
-
-  }, 3000);
-}
+});
 
 
 // ===============================
-// حماية HTML
+// إضافة منتج
 // ===============================
 
-function escapeHTML(value) {
+if (productForm) {
 
-  if (value === null || value === undefined) {
-    return "";
-  }
+  productForm.addEventListener("submit", async (e) => {
 
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+    e.preventDefault();
+
+    const name = productName.value.trim();
+    const price = Number(productPrice.value);
+    const quantity = Number(productQuantity.value);
+    const category = productCategory.value.trim();
+    const description = productDescription.value.trim();
+    const image = productImage.value.trim();
 
 
-// ===============================
-// تحميل المنتجات
-// ===============================
+    // التحقق
 
-async function loadProducts() {
+    if (!name) {
+      alert("اكتب اسم المنتج");
+      return;
+    }
 
-  if (!productsContainer) {
-    console.error("لم يتم العثور على عنصر عرض المنتجات");
-    return;
-  }
+    if (isNaN(price) || price < 0) {
+      alert("اكتب سعر صحيح");
+      return;
+    }
 
-  productsContainer.innerHTML = `
-    <div style="
-      text-align:center;
-      padding:30px;
-      color:#667085;
-    ">
-      جاري تحميل المنتجات...
-    </div>
-  `;
+    if (isNaN(quantity) || quantity < 0) {
+      alert("اكتب كمية صحيحة");
+      return;
+    }
 
-  try {
 
-    const snapshot =
-      await getDocs(collection(db, "products"));
+    try {
 
-    products = snapshot.docs.map(item => ({
+      // إنشاء ID تلقائي
 
-      id: item.id,
+      const newProductRef = push(productsRef);
 
-      ...item.data()
+      const product = {
 
-    }));
+        id: newProductRef.key,
 
-    products.sort((a, b) => {
+        name: name,
 
-      const aTime =
-        a.createdAt?.seconds || 0;
+        price: price,
 
-      const bTime =
-        b.createdAt?.seconds || 0;
+        quantity: quantity,
 
-      return bTime - aTime;
+        category: category,
 
-    });
+        description: description,
 
-    renderProducts();
+        image: image,
 
-  } catch (error) {
+        createdAt: Date.now()
 
-    console.error(error);
+      };
 
-    productsContainer.innerHTML = `
-      <div style="
-        background:#fff1f2;
-        color:#be123c;
-        padding:20px;
-        border-radius:15px;
-        text-align:center;
-      ">
 
-        <h3>حدث خطأ في تحميل المنتجات</h3>
+      await set(newProductRef, product);
 
-        <p>${escapeHTML(error.code || "")}</p>
 
-        <small>
-          ${escapeHTML(error.message || "")}
-        </small>
+      alert("تمت إضافة المنتج بنجاح ✅");
 
-      </div>
-    `;
 
-    toast("فشل الاتصال بـ Firebase");
+      productForm.reset();
 
-  }
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "فشلت إضافة المنتج ❌\n\n" +
+        error.message
+      );
+
+    }
+
+  });
+
 }
 
 
@@ -214,186 +155,108 @@ async function loadProducts() {
 // عرض المنتجات
 // ===============================
 
-function renderProducts() {
+function displayProducts(data) {
 
   if (!productsContainer) return;
 
-  const search =
-    searchInput?.value?.trim().toLowerCase() || "";
 
-  const filtered = products.filter(product => {
-
-    const name =
-      String(product.name || "").toLowerCase();
-
-    const category =
-      String(product.category || "").toLowerCase();
-
-    return (
-      name.includes(search) ||
-      category.includes(search)
-    );
-
-  });
+  productsContainer.innerHTML = "";
 
 
-  if (filtered.length === 0) {
+  const list = Object.values(data);
+
+
+  if (list.length === 0) {
 
     productsContainer.innerHTML = `
-      <div style="
-        text-align:center;
-        padding:40px;
-        color:#667085;
-      ">
-
+      <div class="empty-products">
         لا توجد منتجات حالياً
-
       </div>
     `;
 
     return;
+
   }
 
 
-  productsContainer.innerHTML = filtered.map(product => {
+  list.forEach(product => {
 
-    const image = product.image || "";
+    const card = document.createElement("div");
 
-    return `
+    card.className = "product-card";
 
-      <div class="product-card"
-        data-id="${escapeHTML(product.id)}"
-        style="
-          background:white;
-          border-radius:18px;
-          padding:18px;
-          margin-bottom:15px;
-          box-shadow:0 5px 20px rgba(0,0,0,.07);
-        ">
+
+    card.innerHTML = `
+
+      <div class="product-image">
 
         ${
-          image
+          product.image
           ?
-          `
-          <img
-            src="${escapeHTML(image)}"
-            style="
-              width:100%;
-              max-width:180px;
-              height:150px;
-              object-fit:contain;
-              display:block;
-              margin:auto;
-              border-radius:12px;
-            "
-            onerror="this.style.display='none'"
-          >
-          `
+          `<img src="${escapeHtml(product.image)}"
+                alt="${escapeHtml(product.name)}"
+                onerror="this.style.display='none'">`
           :
-          ""
+          `<div class="no-image">بدون صورة</div>`
         }
 
+      </div>
+
+
+      <div class="product-info">
 
         <h3>
-          ${escapeHTML(product.name || "بدون اسم")}
+          ${escapeHtml(product.name)}
         </h3>
 
+        <div class="product-price">
+          ${Number(product.price).toLocaleString("ar-EG")} جنيه
+        </div>
 
-        <p>
-          السعر:
-          <strong>
-            ${Number(product.price || 0).toLocaleString("ar-EG")}
-          </strong>
-          جنيه
-        </p>
-
-
-        <p>
-          الكمية:
-          <strong>
-            ${escapeHTML(product.quantity ?? 0)}
-          </strong>
-        </p>
-
+        <div class="product-quantity">
+          الكمية: ${product.quantity}
+        </div>
 
         ${
           product.category
           ?
-          `
-          <p>
-            التصنيف:
-            ${escapeHTML(product.category)}
-          </p>
-          `
+          `<div class="product-category">
+            ${escapeHtml(product.category)}
+          </div>`
           :
           ""
         }
-
 
         ${
           product.description
           ?
-          `
-          <p>
-            ${escapeHTML(product.description)}
-          </p>
-          `
+          `<p>
+            ${escapeHtml(product.description)}
+          </p>`
           :
           ""
         }
 
-
-        <div
-          style="
-            display:flex;
-            gap:10px;
-            margin-top:15px;
-          "
-        >
-
-          <button
-            type="button"
-            class="edit-product"
-            data-id="${escapeHTML(product.id)}"
-          >
-            تعديل
-          </button>
-
-
-          <button
-            type="button"
-            class="delete-product"
-            data-id="${escapeHTML(product.id)}"
-          >
-            حذف
-          </button>
-
-        </div>
+        <button
+          class="delete-product"
+          data-id="${product.id}">
+          حذف المنتج
+        </button>
 
       </div>
 
     `;
 
-  }).join("");
 
+    productsContainer.appendChild(card);
 
-  // أزرار التعديل
-
-  document.querySelectorAll(".edit-product")
-    .forEach(button => {
-
-      button.addEventListener("click", () => {
-
-        editProduct(button.dataset.id);
-
-      });
-
-    });
+  });
 
 
   // أزرار الحذف
 
-  document.querySelectorAll(".delete-product")
+  document
+    .querySelectorAll(".delete-product")
     .forEach(button => {
 
       button.addEventListener("click", () => {
@@ -408,323 +271,43 @@ function renderProducts() {
 
 
 // ===============================
-// إضافة / تعديل المنتج
-// ===============================
-
-if (form) {
-
-  form.addEventListener("submit", async event => {
-
-    event.preventDefault();
-
-
-    const name =
-      nameInput?.value?.trim() || "";
-
-    const price =
-      Number(priceInput?.value || 0);
-
-    const quantity =
-      Number(quantityInput?.value || 0);
-
-    const category =
-      categoryInput?.value?.trim() || "";
-
-    const description =
-      descriptionInput?.value?.trim() || "";
-
-    const image =
-      imageInput?.value?.trim() || "";
-
-
-    if (!name) {
-
-      toast("اكتب اسم المنتج");
-
-      nameInput?.focus();
-
-      return;
-    }
-
-
-    if (price < 0) {
-
-      toast("السعر غير صحيح");
-
-      return;
-    }
-
-
-    if (quantity < 0) {
-
-      toast("الكمية غير صحيحة");
-
-      return;
-    }
-
-
-    const data = {
-
-      name,
-
-      price,
-
-      quantity,
-
-      category,
-
-      description,
-
-      image,
-
-      updatedAt: serverTimestamp()
-
-    };
-
-
-    try {
-
-      if (editingId) {
-
-        await updateDoc(
-
-          doc(db, "products", editingId),
-
-          data
-
-        );
-
-        toast("تم تعديل المنتج بنجاح ✓");
-
-      }
-
-      else {
-
-        await addDoc(
-
-          collection(db, "products"),
-
-          {
-
-            ...data,
-
-            createdAt: serverTimestamp()
-
-          }
-
-        );
-
-        toast("تمت إضافة المنتج بنجاح ✓");
-
-      }
-
-
-      resetForm();
-
-      await loadProducts();
-
-
-    } catch (error) {
-
-      console.error(
-        "Firebase Error:",
-        error
-      );
-
-
-      if (
-        error.code ===
-        "permission-denied"
-      ) {
-
-        toast(
-          "Firebase رفض العملية - راجع Rules"
-        );
-
-      }
-
-      else {
-
-        toast(
-          "خطأ: " +
-          (error.code || "unknown")
-        );
-
-      }
-
-    }
-
-  });
-
-}
-
-
-// ===============================
-// تعديل منتج
-// ===============================
-
-function editProduct(id) {
-
-  const product =
-    products.find(item => item.id === id);
-
-  if (!product) {
-
-    toast("المنتج غير موجود");
-
-    return;
-  }
-
-
-  editingId = id;
-
-
-  if (nameInput)
-    nameInput.value =
-      product.name || "";
-
-
-  if (priceInput)
-    priceInput.value =
-      product.price ?? 0;
-
-
-  if (quantityInput)
-    quantityInput.value =
-      product.quantity ?? 0;
-
-
-  if (categoryInput)
-    categoryInput.value =
-      product.category || "";
-
-
-  if (descriptionInput)
-    descriptionInput.value =
-      product.description || "";
-
-
-  if (imageInput)
-    imageInput.value =
-      product.image || "";
-
-
-  if (saveButton) {
-
-    saveButton.textContent =
-      "حفظ التعديل";
-
-  }
-
-
-  if (cancelButton) {
-
-    cancelButton.hidden = false;
-
-  }
-
-
-  window.scrollTo({
-
-    top: 0,
-
-    behavior: "smooth"
-
-  });
-
-}
-
-
-// ===============================
 // حذف منتج
 // ===============================
 
 async function deleteProduct(id) {
 
-  const product =
-    products.find(item => item.id === id);
-
-  if (!product) return;
+  if (!id) return;
 
 
-  const confirmed =
-    confirm(
-      `هل أنت متأكد من حذف "${product.name}"؟`
-    );
+  const confirmDelete = confirm(
+    "هل أنت متأكد من حذف هذا المنتج؟"
+  );
 
 
-  if (!confirmed) return;
+  if (!confirmDelete) return;
 
 
   try {
 
-    await deleteDoc(
-
-      doc(db, "products", id)
-
+    const productRef = ref(
+      db,
+      "products/" + id
     );
 
+    await remove(productRef);
 
-    toast("تم حذف المنتج ✓");
 
-    await loadProducts();
+    alert("تم حذف المنتج ✅");
 
 
   } catch (error) {
 
     console.error(error);
 
-    toast(
-      "فشل حذف المنتج: " +
-      (error.code || "")
+    alert(
+      "فشل حذف المنتج ❌\n\n" +
+      error.message
     );
-
-  }
-
-}
-
-
-// ===============================
-// إلغاء التعديل
-// ===============================
-
-if (cancelButton) {
-
-  cancelButton.addEventListener(
-    "click",
-    resetForm
-  );
-
-}
-
-
-// ===============================
-// إعادة النموذج
-// ===============================
-
-function resetForm() {
-
-  editingId = null;
-
-
-  if (form) {
-
-    form.reset();
-
-  }
-
-
-  if (saveButton) {
-
-    saveButton.textContent =
-      "إضافة المنتج";
-
-  }
-
-
-  if (cancelButton) {
-
-    cancelButton.hidden = true;
 
   }
 
@@ -737,16 +320,66 @@ function resetForm() {
 
 if (searchInput) {
 
-  searchInput.addEventListener(
-    "input",
-    renderProducts
-  );
+  searchInput.addEventListener("input", () => {
+
+    const search = searchInput.value
+      .trim()
+      .toLowerCase();
+
+
+    if (!search) {
+
+      displayProducts(products);
+
+      return;
+
+    }
+
+
+    const filtered = {};
+
+
+    Object.entries(products).forEach(([id, product]) => {
+
+      const name =
+        String(product.name || "")
+          .toLowerCase();
+
+      const category =
+        String(product.category || "")
+          .toLowerCase();
+
+
+      if (
+        name.includes(search) ||
+        category.includes(search)
+      ) {
+
+        filtered[id] = product;
+
+      }
+
+    });
+
+
+    displayProducts(filtered);
+
+  });
 
 }
 
 
 // ===============================
-// التشغيل
+// حماية النصوص
 // ===============================
 
-loadProducts();
+function escapeHtml(value) {
+
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+}
